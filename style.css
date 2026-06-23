@@ -70,6 +70,43 @@ body {
     color: white;
 }
 
+.site-desc {
+    color: var(--text-color);
+    opacity: 0.55;
+    font-size: 0.85rem;
+    margin-top: -1.2rem;
+    margin-bottom: 1rem;
+    transition: color 0.3s ease;
+}
+
+.site-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+.site-nav a {
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 0.82rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.site-nav a:hover { opacity: 1; }
+
+.section-desc {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    opacity: 0.6;
+    line-height: 1.7;
+    margin-bottom: 1.2rem;
+    text-align: left;
+    transition: color 0.3s ease;
+}
+
 header h1 {
     color: var(--primary-color);
     margin-bottom: 2rem;
