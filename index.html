@@ -35,6 +35,47 @@
                 <!-- History of generated numbers will be inserted here -->
             </ul>
         </aside>
+        <section class="animal-test">
+            <h2>🐶 동물상 테스트 🐱</h2>
+            <p class="animal-subtitle">나는 강아지상? 고양이상? AI가 분석해드립니다</p>
+
+            <div id="at-upload-section">
+                <label class="at-upload-area" id="at-drop-zone">
+                    <input type="file" id="at-file-input" accept="image/*">
+                    <span class="at-upload-icon">📷</span>
+                    <span>사진을 클릭하거나 드래그해서 업로드</span>
+                </label>
+                <div class="at-divider">또는</div>
+                <button class="submit-btn" id="at-webcam-btn" style="width:100%">📹 웹캠으로 테스트하기</button>
+            </div>
+
+            <div id="at-preview-area" style="display:none">
+                <img id="at-preview-img" src="" alt="미리보기">
+                <button class="submit-btn" id="at-analyze-btn" style="margin-top:0.8rem">🔍 분석하기</button>
+            </div>
+
+            <div id="at-webcam-area" style="display:none">
+                <div id="at-webcam-container"></div>
+                <div style="display:flex;gap:0.6rem;margin-top:0.8rem">
+                    <button class="submit-btn" id="at-capture-btn" style="flex:1">📸 지금 분석하기</button>
+                    <button class="submit-btn" id="at-stop-btn" style="flex:1;background:var(--history-item-bg);box-shadow:none;color:var(--text-color)">✕ 닫기</button>
+                </div>
+            </div>
+
+            <div id="at-loading" style="display:none;text-align:center;padding:1.2rem 0">
+                <div class="at-spinner"></div>
+                <span style="color:var(--text-color);opacity:0.6;font-size:0.9rem">분석 중...</span>
+            </div>
+
+            <div id="at-result" style="display:none;margin-top:1.2rem;text-align:center">
+                <div id="at-result-emoji" style="font-size:3rem;margin-bottom:0.3rem"></div>
+                <div id="at-result-label" style="font-size:1.5rem;font-weight:800;color:var(--primary-color);margin-bottom:0.4rem"></div>
+                <div id="at-result-desc" style="font-size:0.88rem;color:var(--text-color);opacity:0.7;margin-bottom:1.2rem;line-height:1.6"></div>
+                <div id="at-bars"></div>
+                <button class="submit-btn" id="at-reset-btn" style="margin-top:1rem;background:var(--history-item-bg);box-shadow:none;color:var(--text-color)">↩ 다시하기</button>
+            </div>
+        </section>
+
         <section class="contact">
             <h2>제휴 문의</h2>
             <form id="contact-form" action="https://formspree.io/f/xpqbprop" method="POST">
@@ -76,5 +117,139 @@
         </footer>
     </div>
     <script type="module" src="main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script>
+        const AT_MODEL_URL = "https://teachablemachine.withgoogle.com/models/zU-HGPSR6/";
+        const AT_INFO = {
+            "강아지": { emoji: "🐶", label: "강아지상", desc: "충성스럽고 따뜻한 매력! 눈빛이 맑고 표정이 풍부해 사람들에게 친근한 인상을 줍니다." },
+            "고양이": { emoji: "🐱", label: "고양이상", desc: "신비롭고 도도한 매력! 눈매가 날카롭고 세련된 인상으로 알수록 매력이 넘치는 타입입니다." }
+        };
+
+        let atModel, atWebcam, atWebcamRunning = false, atUploadedImg = null;
+
+        function atGetInfo(className) {
+            for (const [k, v] of Object.entries(AT_INFO)) {
+                if (className.includes(k)) return v;
+            }
+            return { emoji: "🐾", label: className, desc: "개성 넘치는 동물상!" };
+        }
+
+        async function atLoadModel() {
+            if (!atModel) atModel = await tmImage.load(AT_MODEL_URL + "model.json", AT_MODEL_URL + "metadata.json");
+            return atModel;
+        }
+
+        async function atAnalyze(imageEl) {
+            document.getElementById("at-loading").style.display = "block";
+            try {
+                const m = await atLoadModel();
+                const pred = await m.predict(imageEl);
+                atShowResult(pred);
+            } catch(e) {
+                alert("모델 로드 실패: " + e.message);
+            } finally {
+                document.getElementById("at-loading").style.display = "none";
+            }
+        }
+
+        function atShowResult(pred) {
+            const sorted = [...pred].sort((a,b) => b.probability - a.probability);
+            const info = atGetInfo(sorted[0].className);
+            document.getElementById("at-result-emoji").textContent = info.emoji;
+            document.getElementById("at-result-label").textContent = info.label;
+            document.getElementById("at-result-desc").textContent = info.desc;
+
+            const bars = document.getElementById("at-bars");
+            bars.innerHTML = sorted.map(p => {
+                const pct = (p.probability * 100).toFixed(1);
+                const i = atGetInfo(p.className);
+                return `<div style="margin-bottom:0.7rem;text-align:left">
+                    <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.3rem;opacity:0.8">
+                        <span>${i.emoji} ${i.label}</span><span>${pct}%</span>
+                    </div>
+                    <div style="background:var(--history-item-bg);border-radius:99px;height:8px;overflow:hidden">
+                        <div style="height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary-color),var(--secondary-color));width:0%;transition:width 0.8s cubic-bezier(0.22,1,0.36,1)" data-pct="${pct}"></div>
+                    </div>
+                </div>`;
+            }).join("");
+
+            document.getElementById("at-result").style.display = "block";
+            document.getElementById("at-preview-area").style.display = "none";
+            document.getElementById("at-webcam-area").style.display = "none";
+            requestAnimationFrame(() => {
+                bars.querySelectorAll("[data-pct]").forEach(el => el.style.width = el.dataset.pct + "%");
+            });
+        }
+
+        function atReset() {
+            if (atWebcam && atWebcamRunning) { atWebcamRunning = false; atWebcam.stop(); }
+            atWebcam = null; atUploadedImg = null;
+            document.getElementById("at-upload-section").style.display = "block";
+            document.getElementById("at-preview-area").style.display = "none";
+            document.getElementById("at-webcam-area").style.display = "none";
+            document.getElementById("at-result").style.display = "none";
+            document.getElementById("at-preview-img").src = "";
+            document.getElementById("at-file-input").value = "";
+        }
+
+        document.getElementById("at-file-input").addEventListener("change", e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const img = document.getElementById("at-preview-img");
+                img.src = ev.target.result;
+                img.onload = () => { atUploadedImg = img; };
+                document.getElementById("at-upload-section").style.display = "none";
+                document.getElementById("at-preview-area").style.display = "block";
+                document.getElementById("at-result").style.display = "none";
+            };
+            reader.readAsDataURL(file);
+        });
+
+        const atDrop = document.getElementById("at-drop-zone");
+        atDrop.addEventListener("dragover", e => { e.preventDefault(); atDrop.classList.add("at-drag-over"); });
+        atDrop.addEventListener("dragleave", () => atDrop.classList.remove("at-drag-over"));
+        atDrop.addEventListener("drop", e => {
+            e.preventDefault(); atDrop.classList.remove("at-drag-over");
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith("image/")) {
+                document.getElementById("at-file-input").files = e.dataTransfer.files;
+                document.getElementById("at-file-input").dispatchEvent(new Event("change"));
+            }
+        });
+
+        document.getElementById("at-analyze-btn").addEventListener("click", () => { if (atUploadedImg) atAnalyze(atUploadedImg); });
+
+        document.getElementById("at-webcam-btn").addEventListener("click", async () => {
+            document.getElementById("at-upload-section").style.display = "none";
+            document.getElementById("at-webcam-area").style.display = "block";
+            document.getElementById("at-loading").style.display = "block";
+            try {
+                await atLoadModel();
+                atWebcam = new tmImage.Webcam(440, 300, true);
+                await atWebcam.setup();
+                await atWebcam.play();
+                atWebcamRunning = true;
+                const c = document.getElementById("at-webcam-container");
+                c.innerHTML = "";
+                c.appendChild(atWebcam.canvas);
+                (function loop() { if (!atWebcamRunning) return; atWebcam.update(); requestAnimationFrame(loop); })();
+            } catch(e) {
+                alert("웹캠 오류: " + e.message); atReset();
+            } finally {
+                document.getElementById("at-loading").style.display = "none";
+            }
+        });
+
+        document.getElementById("at-capture-btn").addEventListener("click", async () => {
+            atWebcamRunning = false; atWebcam.stop();
+            await atAnalyze(atWebcam.canvas);
+        });
+
+        document.getElementById("at-stop-btn").addEventListener("click", atReset);
+        document.getElementById("at-reset-btn").addEventListener("click", atReset);
+    </script>
 </body>
 </html>
